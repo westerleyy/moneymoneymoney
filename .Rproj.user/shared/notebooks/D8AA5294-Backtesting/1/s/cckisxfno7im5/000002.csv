@@ -1,0 +1,8 @@
+"0","## need to find the repeated numbers per month
+monthly_count <- toto_data_long %>%
+  group_by(year_month, value) %>%
+  summarize(monthly_draw_count = n()) %>%
+  filter(monthly_draw_count > 1)
+"
+"2","`summarise()` has grouped output by 'year_month'. You can override using the `.groups` argument.
+"

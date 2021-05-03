@@ -1,0 +1,66 @@
+---
+title: "Backtesting"
+author: "Wesley Chioh"
+date: "5/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(DT)
+library(zoo)
+
+toto_data <- read_csv("loteria.csv")
+```
+
+
+
+#### Cleaning
+
+```{r feature adjustment, echo = FALSE}
+toto_data <- toto_data %>%
+  group_by(Date) %>%
+  mutate(month = strsplit(Date, "/")[[1]][1],
+         year = strsplit(Date, "/")[[1]][3],
+         year_month = paste(year, month, sep = "_")) %>%
+  ungroup()
+
+toto_data_long <- toto_data %>%
+  select(N1:N7, Date, year_month) %>%
+  pivot_longer(cols = N1:N7, names_to = "Number")
+
+## need to find the repeated numbers per month
+monthly_count <- toto_data_long %>%
+  group_by(year_month, value) %>%
+  summarize(monthly_draw_count = n()) %>%
+  filter(monthly_draw_count > 1)
+
+
+
+
+toto_summary <- toto_data_long %>%
+  group_by(year_month, value) %>%
+  summarize(monthly_draw_count = n()) %>%
+  ungroup() %>%
+  group_by(value) %>%
+  mutate(total_draw_count = n())
+  
+toto_repeats <- toto_summary %>%
+  filter(monthly_draw_count > 1)
+```
+
+#### Quick Summary  
+  
+Okay. So some numbers really do appear a more frequently than others. Most appear around 10 to 13 times. But there are quite a few that appear quite a lot more frequently than that.  
+```{r summary, echo=FALSE}
+toto_data_basic_count <- toto_data_long %>%
+  group_by(value) %>%
+  summarise(appearance_count = n())
+datatable(toto_data_basic_count)
+
+ggplot(toto_data_basic_count, aes(appearance_count)) + 
+  geom_histogram(binwidth = 1)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
