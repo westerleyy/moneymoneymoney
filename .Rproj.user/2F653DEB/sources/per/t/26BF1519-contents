@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(DT)
 library(zoo)
+library(stargazer)
+library(dgof)
 
 toto_data <- read_csv("loteria.csv")
 ```
@@ -59,8 +61,112 @@ toto_data_basic_count <- toto_data_long %>%
   summarise(appearance_count = n())
 datatable(toto_data_basic_count)
 
+toto_appearance_count_vec <- toto_data_long$value %>%
+  unlist() 
+
+toto_appearance_count_vec <- toto_data_basic_count$appearance_count %>%
+  unlist() 
+
 ggplot(toto_data_basic_count, aes(appearance_count)) + 
   geom_histogram(binwidth = 1)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#### Hypothesis Testing  
+  
+```{r random gen, echo = FALSE}
+# simulate drawing of numbers
+simulated_toto_draw <- sapply(1:91, function(x){
+  sample(1:49, 7)
+}) %>%
+  t() %>%
+  as.data.frame()
+
+colnames(simulated_toto_draw) <- c("N1", "N2", "N3", "N4", "N5", "N6", "N7")
+
+simulated_toto_draw$Draw <- 1:91
+
+simulated_toto_draw_long <- simulated_toto_draw %>%
+  pivot_longer(cols = N1:N7, names_to = "Number")
+
+# summarizing
+simulated_toto_draw_basic_count <- simulated_toto_draw_long %>%
+  group_by(value) %>%
+  summarise(appearance_count = n())
+
+simulated_appearance_vec <- simulated_toto_draw_long$value %>%
+  unlist()
+
+simulated_appearance_vec <- simulated_toto_draw_basic_count$appearance_count %>%
+  unlist()
+
+# Kolmogorov-Smirnov Test
+ks_test_obj <- ks.test(toto_appearance_count_vec, simulated_appearance_vec)
+
+## plotting result
+
+plot(ecdf(toto_appearance_count_vec), 
+     xlim = range(c(toto_appearance_count_vec, simulated_appearance_vec)), 
+     col = "blue")
+plot(ecdf(simulated_appearance_vec), 
+     add = TRUE, 
+     lty = "dashed",
+     col = "red")
+
+
+# running a monte carlo simulation
+
+mc_toto <- sapply(1:10000, function(x){
+  simulated_toto_draw <- sapply(1:91, function(y){
+    sample(1:49, 7)
+    }) %>%
+    t() %>%
+    as.data.frame()
+  colnames(simulated_toto_draw) <- c("N1", "N2", "N3", "N4", "N5", "N6", "N7")
+  simulated_toto_draw$Draw <- 1:91
+  simulated_toto_draw_long <- simulated_toto_draw %>%
+  pivot_longer(cols = N1:N7, names_to = "Number")
+
+  simulated_appearance_vec <- simulated_toto_draw_long$value %>%
+    unlist()
+  ks_test_obj <- ks.test(toto_appearance_count_vec, simulated_appearance_vec)
+  ks_test_obj$p.value
+})
+
+significant <- mc_toto[mc_toto <= 0.05]
+```
+  
+Okay on the scale of months, it seems that it is normally and randomly distributed. What about weekly?  
+  
+```{r april, echo = FALSE}
+toto_april <- toto_data %>%
+  filter(year_month == "2021_4")
+
+toto_april_long <- toto_april %>%
+  select(N1:N7, Date, year_month) %>%
+  pivot_longer(cols = N1:N7, names_to = "Number")
+
+toto_april_vec <- toto_april_long$value %>%
+  unlist()
+
+mc_toto_april <- sapply(1:10000, function(x){
+  simulated_toto_draw <- sapply(1:9, function(y){
+    sample(1:49, 7)
+    }) %>%
+    t() %>%
+    as.data.frame()
+  colnames(simulated_toto_draw) <- c("N1", "N2", "N3", "N4", "N5", "N6", "N7")
+  simulated_toto_draw$Draw <- 1:9
+  simulated_toto_draw_long <- simulated_toto_draw %>%
+  pivot_longer(cols = N1:N7, names_to = "Number")
+
+  simulated_appearance_vec <- simulated_toto_draw_long$value %>%
+    unlist()
+  ks_test_obj <- ks.test(toto_april_vec, simulated_appearance_vec)
+  ks_test_obj$p.value
+})
+
+mc_toto_april_sig <- mc_toto_april[mc_toto_april <= 0.05]
+
+```
+  
+  
